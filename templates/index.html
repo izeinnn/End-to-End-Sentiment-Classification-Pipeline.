@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentiFlow: End-to-End NLP Sentiment Classification Pipeline</title>
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-primary: #6366f1; /* Indigo */
+            --accent-secondary: #a855f7; /* Purple */
+            --success: #10b981; /* Emerald */
+            --danger: #ef4444; /* Red */
+            --font-main: 'Inter', sans-serif;
+            --font-title: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.15) 0px, transparent 50%);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        h1 {
+            font-family: var(--font-title);
+            font-size: 2.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 50%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.025em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Server Status bar */
+        .status-bar {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--success);
+        }
+
+        .status-label {
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .card-title {
+            font-family: var(--font-title);
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Input Form */
+        textarea {
+            width: 100%;
+            height: 140px;
+            background: rgba(17, 24, 39, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1rem;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+            margin-bottom: 1rem;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.35);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            border: none;
+            color: white;
+            padding: 0.85rem 2rem;
+            font-family: var(--font-title);
+            font-size: 1.05rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Results Display */
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+            min-height: 250px;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 1.5rem;
+        }
+
+        .results-placeholder {
+            color: var(--text-secondary);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .results-placeholder svg {
+            width: 48px;
+            height: 48px;
+            color: var(--accent-primary);
+            opacity: 0.6;
+        }
+
+        .result-card {
+            width: 100%;
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .sentiment-badge {
+            font-family: var(--font-title);
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px currentColor;
+        }
+
+        .sentiment-badge.positive {
+            color: var(--success);
+        }
+
+        .sentiment-badge.negative {
+            color: var(--danger);
+        }
+
+        /* Meter/Gauge */
+        .gauge-container {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            height: 12px;
+            overflow: hidden;
+            position: relative;
+            margin: 1.5rem 0;
+        }
+
+        .gauge-bar {
+            height: 100%;
+            width: 0%;
+            border-radius: 20px;
+        }
+
+        .gauge-bar.positive {
+            background: linear-gradient(90deg, var(--accent-primary), var(--success));
+        }
+
+        .gauge-bar.negative {
+            background: linear-gradient(90deg, var(--accent-secondary), var(--danger));
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 0;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        /* Pipeline Tabs Section */
+        .pipeline-section {
+            margin-top: 1rem;
+        }
+
+        .tabs-header {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            font-family: var(--font-title);
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .tab-content {
+            display: none;
+            line-height: 1.6;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content p {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .code-block {
+            background: #060913;
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            overflow-x: auto;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1rem 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--card-border);
+            width: 100%;
+        }
+
+        /* Spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border-left-color: var(--accent-primary);
+            animation: spin 1s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>SentiFlow: End-to-End Sentiment Classification</h1>
+        <p class="subtitle">Movie Review Sentiment Analysis using a modular PyTorch training loop and DistilBERT model architecture.</p>
+    </header>
+
+    <!-- System Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-dot"></span>
+            <span class="status-label">Pipeline Status:</span>
+            <span class="status-value" id="status-val">Online</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Hardware Device:</span>
+            <span class="status-value" id="device-val">Detecting...</span>
+        </div>
+        <div class="status-item">
+            <span class="status-label">Active Model:</span>
+            <span class="status-value" id="model-val">Detecting...</span>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid">
+        <!-- Input Console -->
+        <div class="card">
+            <h2 class="card-title">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Inference Testing Playground
+            </h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">
+                Enter a custom movie review text below to query the inference pipeline in real time.
+            </p>
+            <textarea id="text-input" placeholder="Type or paste your movie review here... e.g., 'This was the most spectacular piece of cinema I have witnessed all year. Incredible cast!'"></textarea>
+            
+            <button class="btn" id="analyze-btn">
+                <span>Analyze Sentiment</span>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+        </div>
+
+        <!-- Output Display -->
+        <div class="card">
+            <h2 class="card-title">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Inference Results
+            </h2>
+            
+            <div class="results-container">
+                <!-- Loader -->
+                <div class="spinner" id="spinner"></div>
+
+                <!-- Placeholder -->
+                <div class="results-placeholder" id="placeholder">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                    <p>Enter review text and click "Analyze Sentiment" to run the classification model.</p>
+                </div>
+
+                <!-- Real Output -->
+                <div class="result-card" id="result-card">
+                    <div class="sentiment-badge" id="sentiment-badge">POSITIVE</div>
+                    
+                    <div class="gauge-container">
+                        <div class="gauge-bar" id="gauge-bar"></div>
+                    </div>
+
+                    <div class="metric-row">
+                        <span>Confidence Score</span>
+                        <span class="metric-value" id="confidence-val">0.00%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Device Used</span>
+                        <span class="metric-value" id="res-device-val">CPU</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Model Source</span>
+                        <span class="metric-value" id="res-model-val">N/A</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pipeline Showcase Panel -->
+    <div class="card pipeline-section">
+        <h2 class="card-title">
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+            Pipeline Stage Walkthrough
+        </h2>
+        
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="switchTab(event, 'ingestion')">1. Data Ingestion</button>
+            <button class="tab-btn" onclick="switchTab(event, 'preprocessing')">2. Tokenization</button>
+            <button class="tab-btn" onclick="switchTab(event, 'training')">3. PyTorch Training</button>
+            <button class="tab-btn" onclick="switchTab(event, 'evaluation')">4. Evaluation</button>
+            <button class="tab-btn" onclick="switchTab(event, 'inference')">5. Serving</button>
+        </div>
+
+        <!-- Ingestion -->
+        <div class="tab-content active" id="ingestion">
+            <p>We load the classic IMDb dataset using Hugging Face datasets module and downsample it to 2,000 train and 500 test samples to keep the training runtime predictable and student-friendly.</p>
+            <div class="code-block">
+from datasets import load_dataset
+raw_datasets = load_dataset("imdb")
+train_dataset = raw_datasets["train"].shuffle(seed=42).select(range(2000))
+            </div>
+        </div>
+
+        <!-- Preprocessing -->
+        <div class="tab-content" id="preprocessing">
+            <p>Texts are tokenized using the pretrained DistilBERT tokenizer, truncated to 256 tokens, padded, and then transformed into PyTorch format with only tensor-compatible columns remaining.</p>
+            <div class="code-block">
+def tokenize_function(examples):
+    return tokenizer(examples["text"], truncation=True, padding="max_length", max_length=256)
+
+tokenized_train = train_dataset.map(tokenize_function, batched=True)
+tokenized_train.set_format("torch")
+            </div>
+        </div>
+
+        <!-- Training -->
+        <div class="tab-content" id="training">
+            <p>Training runs on PyTorch native DataLoader loaders utilizing an AdamW optimizer, a linear scheduler, and gradients computing on raw tensors.</p>
+            <div class="code-block">
+optimizer = AdamW(model.parameters(), lr=2e-5)
+for epoch in range(EPOCHS):
+    for batch in train_dataloader:
+        outputs = model(**batch)
+        loss = outputs.loss
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+            </div>
+        </div>
+
+        <!-- Evaluation -->
+        <div class="tab-content" id="evaluation">
+            <p>We freeze the weights by invoking <code>model.eval()</code> and execute forward inferences on the test set dataloader, measuring accuracy via Hugging Face's <code>evaluate</code> module.</p>
+            <div class="code-block">
+metric = evaluate.load("accuracy")
+model.eval()
+for batch in test_dataloader:
+    with torch.no_grad():
+        outputs = model(**batch)
+    predictions = torch.argmax(outputs.logits, dim=-1)
+    metric.add_batch(predictions=predictions, references=batch["labels"])
+            </div>
+        </div>
+
+        <!-- Inference -->
+        <div class="tab-content" id="inference">
+            <p>In production, fine-tuned serialization weights are loaded back, text runs through a softmax layer to extract classification probabilities, and the highest scoring index determines target sentiment.</p>
+            <div class="code-block">
+probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)
+sentiment = "Positive" if torch.argmax(probabilities) == 1 else "Negative"
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    SentiFlow: End-to-End Sentiment Classification Pipeline &copy; 2026. Made with FastAPI, PyTorch, & Hugging Face Transformers.
+</footer>
+
+<script>
+    // System status checking
+    async function checkStatus() {
+        try {
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            document.getElementById('device-val').innerText = data.device;
+            document.getElementById('model-val').innerText = data.model_used;
+        } catch (err) {
+            console.error("Failed to connect to API backend", err);
+            document.getElementById('status-val').innerText = "Offline";
+            document.getElementById('status-val').style.backgroundColor = "var(--danger)";
+        }
+    }
+    
+    // Switch tabs
+    function switchTab(evt, tabId) {
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => btn.classList.remove('active'));
+        
+        document.getElementById(tabId).classList.add('active');
+        evt.currentTarget.classList.add('active');
+    }
+
+    // Prediction submit
+    document.getElementById('analyze-btn').addEventListener('click', async () => {
+        const text = document.getElementById('text-input').value.trim();
+        if(!text) return;
+
+        // UI state toggles
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('result-card').style.display = 'none';
+        document.getElementById('spinner').style.display = 'block';
+
+        try {
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+
+            if(!response.ok) throw new Error("Backend server error");
+            const data = await response.json();
+
+            // Render details
+            const badge = document.getElementById('sentiment-badge');
+            badge.innerText = data.sentiment.toUpperCase();
+            badge.className = 'sentiment-badge ' + data.sentiment.toLowerCase();
+
+            const bar = document.getElementById('gauge-bar');
+            bar.className = 'gauge-bar ' + data.sentiment.toLowerCase();
+            bar.style.width = (data.confidence * 100) + '%';
+
+            document.getElementById('confidence-val').innerText = (data.confidence * 100).toFixed(2) + '%';
+            document.getElementById('res-device-val').innerText = data.device;
+            document.getElementById('res-model-val').innerText = data.model_used;
+
+            // Toggle view
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('result-card').style.display = 'block';
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('placeholder').style.display = 'flex';
+            alert("Failed to analyze sentiment. Check backend terminal logs.");
+        }
+    });
+
+    // Run status checking on page load
+    window.onload = checkStatus;
+</script>
+
+</body>
+</html>
