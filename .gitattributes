@@ -1,0 +1,3 @@
+# Exclude HTML templates from GitHub language statistics
+templates/** linguist-vendored
+notebooks/** linguist-documentation
